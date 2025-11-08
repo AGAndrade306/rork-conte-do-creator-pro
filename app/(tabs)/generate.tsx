@@ -69,15 +69,22 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
         try {
           let text = textPart.text.trim();
           
-          text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-          
-          const jsonMatch = text.match(/\[(.*?)\]/s);
-          if (jsonMatch) {
-            text = jsonMatch[0];
+          if (!text || text.length < 10) {
+            return;
           }
           
-          if (!text || text.length < 2) {
-            console.log('Waiting for complete response...');
+          text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+          
+          const arrayStartIndex = text.indexOf('[');
+          const arrayEndIndex = text.lastIndexOf(']');
+          
+          if (arrayStartIndex === -1 || arrayEndIndex === -1 || arrayEndIndex <= arrayStartIndex) {
+            return;
+          }
+          
+          text = text.substring(arrayStartIndex, arrayEndIndex + 1);
+          
+          if (!text.endsWith(']')) {
             return;
           }
           
@@ -96,11 +103,7 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
             console.log(`Successfully parsed ${ideas.length} ideas`);
           }
         } catch (e) {
-          if (e instanceof SyntaxError && textPart.text.length < 100) {
-            console.log('Waiting for more data...');
-          } else {
-            console.error('Error parsing ideas:', e);
-          }
+          
         }
       }
     }
