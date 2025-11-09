@@ -8,7 +8,7 @@ AI_PROVIDER=openai
 # ===========================================
 # OPENAI CONFIGURATION
 # ===========================================
-OPENAI_API_KEY=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
+OPENAI_API_KEY=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
 OPENAI_MODEL=gpt-4o
 OPENAI_BASE_URL=https://api.openai.com/v1
 
