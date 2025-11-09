@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Send, Save, TrendingUp, Target, Heart, Hash } from 'lucide-react-native';
+import { Sparkles, Send, Save, TrendingUp, Target, Heart, Hash, Flag } from 'lucide-react-native';
 import { useRorkAgent } from '@rork/toolkit-sdk';
 import { useContent } from '@/context/ContentContext';
 import { ContentIdea } from '@/types';
@@ -21,6 +21,7 @@ export default function GenerateScreen() {
   const insets = useSafeAreaInsets();
   const [niche, setNiche] = useState('');
   const [branding, setBranding] = useState('');
+  const [purpose, setPurpose] = useState('');
   const [quantity, setQuantity] = useState<string>('15');
   const [generatedIdeas, setGeneratedIdeas] = useState<ContentIdea[]>([]);
   const { saveScript } = useContent();
@@ -42,6 +43,7 @@ export default function GenerateScreen() {
 
 Gere EXATAMENTE ${numIdeas} ideias de conteúdo para o seguinte nicho: ${niche}
 ${branding ? `Características do branding: ${branding}` : ''}
+${purpose ? `Propósito do conteúdo: ${purpose}` : ''}
 
 Para cada ideia, forneça em formato JSON:
 1. Título atrativo
@@ -184,6 +186,20 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
                     multiline
                     numberOfLines={4}
                     textAlignVertical="top"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Propósito do Conteúdo (opcional)</Text>
+                <View style={styles.inputWrapper}>
+                  <Flag size={18} color="#64748B" />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Aumentar engajamento, educar, vender..."
+                    placeholderTextColor="#64748B"
+                    value={purpose}
+                    onChangeText={setPurpose}
                   />
                 </View>
               </View>
