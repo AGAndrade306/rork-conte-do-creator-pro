@@ -10,8 +10,10 @@ const ideaSchema = z.object({
 });
 
 const generateIdeasSchema = z.object({
-  niche: z.string(),
+  niche: z.string().min(1),
   branding: z.string().optional(),
+  purpose: z.string().optional(),
+  quantity: z.number().int().min(1).max(15),
 });
 
 export const generateIdeasProcedure = protectedProcedure
@@ -21,8 +23,9 @@ export const generateIdeasProcedure = protectedProcedure
     
     const prompt = `Você é um especialista em criação de conteúdo viral para redes sociais.
 
-Gere EXATAMENTE 15 ideias de conteúdo para o seguinte nicho: ${input.niche}
+Gere EXATAMENTE ${input.quantity} ideias de conteúdo para o seguinte nicho: ${input.niche}
 ${input.branding ? `Características do branding: ${input.branding}` : ''}
+${input.purpose ? `Propósito do conteúdo: ${input.purpose}` : ''}
 
 Para cada ideia, forneça:
 1. Título atrativo

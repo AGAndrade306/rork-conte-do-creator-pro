@@ -13,7 +13,7 @@ import {
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, Send, Save, TrendingUp, Target, Heart, Hash, Flag } from 'lucide-react-native';
-import { useRorkAgent } from '@rork/toolkit-sdk';
+import { trpc } from '@/lib/trpc';
 import { useContent } from '@/context/ContentContext';
 import { ContentIdea } from '@/types';
 
