@@ -1,10 +1,23 @@
 export interface TrendingTopic {
   id: string;
   title: string;
-  category: 'tiktok' | 'instagram' | 'youtube' | 'news';
+  category:
+    | 'tiktok'
+    | 'instagram'
+    | 'youtube'
+    | 'news'
+    | 'x'
+    | 'spotify'
+    | 'instagramHashtags'
+    | 'tiktokHashtags';
   engagement: string;
   timeAgo: string;
   source: string;
+  link: string;
+  domain: string;
+  description: string;
+  previewImage: string;
+  highlights: string[];
 }
 
 export interface ContentIdea {

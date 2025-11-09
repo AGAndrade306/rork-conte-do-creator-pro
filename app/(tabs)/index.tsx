@@ -1,32 +1,56 @@
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  ScrollView, 
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
   TouchableOpacity,
   Animated,
   Platform,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TrendingUp, Sparkles, Clock, ArrowRight } from 'lucide-react-native';
+import {
+  TrendingUp,
+  Sparkles,
+  Clock,
+  ArrowRight,
+  Music4,
+  Camera,
+  Youtube,
+  Newspaper,
+  Share2,
+  Headphones,
+  Hash,
+} from 'lucide-react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { TRENDING_TOPICS } from '@/constants/mockData';
 import { TrendingTopic } from '@/types';
 
-const categoryColors: Record<string, readonly [string, string]> = {
+const categoryColors: Record<TrendingTopic['category'], readonly [string, string]> = {
   tiktok: ['#FF0050', '#00F2EA'],
   instagram: ['#F58529', '#DD2A7B'],
   youtube: ['#FF0000', '#CC0000'],
   news: ['#3B82F6', '#1D4ED8'],
+  x: ['#0F172A', '#38BDF8'],
+  spotify: ['#15803D', '#22C55E'],
+  instagramHashtags: ['#F59E0B', '#E11D48'],
+  tiktokHashtags: ['#8B5CF6', '#0EA5E9'],
 };
 
-const categoryIcons = {
-  tiktok: '🎵',
-  instagram: '📸',
-  youtube: '▶️',
-  news: '📰',
+type IconComponent = (props: { color?: string; size?: number }) => JSX.Element;
+
+const categoryIconMap: Record<TrendingTopic['category'], IconComponent> = {
+  tiktok: Music4,
+  instagram: Camera,
+  youtube: Youtube,
+  news: Newspaper,
+  x: Share2,
+  spotify: Headphones,
+  instagramHashtags: Sparkles,
+  tiktokHashtags: Hash,
 };
 
 export default function HomeScreen() {
@@ -127,36 +151,82 @@ export default function HomeScreen() {
 }
 
 function TrendingCard({ topic }: { topic: TrendingTopic }) {
-  const colors = categoryColors[topic.category];
-  
+  const colors = categoryColors[topic.category] ?? (['#334155', '#1E293B'] as const);
+  const CategoryIcon = categoryIconMap[topic.category];
+
+  const handleOpenLink = React.useCallback(async () => {
+    console.log('[Trending] Opening source', topic.domain);
+    try {
+      await Linking.openURL(topic.link);
+    } catch (error) {
+      console.error('[Trending] Failed to open link', error);
+    }
+  }, [topic.domain, topic.link]);
+
   return (
-    <View style={styles.card}>
-      <LinearGradient
-        colors={colors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.cardBadge}
-      >
-        <Text style={styles.cardBadgeIcon}>{categoryIcons[topic.category]}</Text>
-      </LinearGradient>
+    <View style={styles.card} testID={`trending-card-${topic.id}`}>
+      <View style={styles.cardHeader}>
+        <LinearGradient
+          colors={colors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.cardBadge}
+        >
+          <CategoryIcon size={20} color="#FFFFFF" />
+        </LinearGradient>
+        <View style={styles.cardHeaderInfo}>
+          <Text style={styles.cardSourceLabel}>{topic.source}</Text>
+          <Text style={styles.cardDomain}>{topic.domain}</Text>
+        </View>
+      </View>
+
+      <View style={styles.previewWrapper}>
+        <Image
+          source={{ uri: topic.previewImage }}
+          style={styles.previewImage}
+          contentFit="cover"
+          transition={120}
+        />
+        <LinearGradient
+          colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.9)']}
+          start={{ x: 0, y: 0.3 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.previewOverlay}
+        >
+          <View style={styles.previewMeta}>
+            <View style={styles.previewRow}>
+              <TrendingUp size={14} color="#F8FAFC" />
+              <Text style={styles.previewMetaText}>{topic.engagement}</Text>
+            </View>
+            <View style={styles.previewRow}>
+              <Clock size={14} color="#E2E8F0" />
+              <Text style={styles.previewMetaText}>{topic.timeAgo}</Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
 
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle}>{topic.title}</Text>
-        
-        <View style={styles.cardMeta}>
-          <View style={styles.cardMetaItem}>
-            <TrendingUp size={14} color="#A855F7" />
-            <Text style={styles.cardMetaText}>{topic.engagement}</Text>
-          </View>
-          <View style={styles.cardMetaItem}>
-            <Clock size={14} color="#64748B" />
-            <Text style={styles.cardMetaText}>{topic.timeAgo}</Text>
-          </View>
+        <Text style={styles.cardDescription}>{topic.description}</Text>
+
+        <View style={styles.cardChips}>
+          {topic.highlights.map((highlight, index) => (
+            <View key={`${topic.id}-${index}`} style={styles.chip}>
+              <Text style={styles.chipText}>{highlight}</Text>
+            </View>
+          ))}
         </View>
 
-        <View style={styles.cardSource}>
-          <Text style={styles.cardSourceText}>Fonte: {topic.source}</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.cardAction}
+          activeOpacity={0.85}
+          onPress={handleOpenLink}
+          testID={`trending-card-action-${topic.id}`}
+        >
+          <Text style={styles.cardActionText}>Ver tendência</Text>
+          <ArrowRight size={18} color="#0EA5E9" />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -274,54 +344,141 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   card: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    marginBottom: 16,
+    backgroundColor: '#111C2E',
+    borderRadius: 24,
+    marginBottom: 28,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(148, 163, 184, 0.18)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0EA5E9',
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.16,
+        shadowRadius: 24,
+      },
+      android: {
+        elevation: 6,
+      },
+      default: {},
+    }),
   },
-  cardBadge: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  cardBadgeIcon: {
-    fontSize: 20,
-  },
-  cardContent: {
-    padding: 16,
-    gap: 12,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-    lineHeight: 24,
-  },
-  cardMeta: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
-  cardMetaItem: {
+  cardBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardHeaderInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  cardSourceLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#E2E8F0',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  cardDomain: {
+    fontSize: 12,
+    color: 'rgba(148, 163, 184, 0.9)',
+  },
+  previewWrapper: {
+    marginTop: 16,
+    marginHorizontal: 20,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#0F172A',
+    height: 160,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  previewOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 16,
+  },
+  previewMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  previewRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
-  cardMetaText: {
-    fontSize: 13,
-    color: '#94A3B8',
-    fontWeight: '500',
-  },
-  cardSource: {
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-  },
-  cardSourceText: {
+  previewMetaText: {
     fontSize: 12,
-    color: '#64748B',
+    fontWeight: '600',
+    color: '#F8FAFC',
+  },
+  cardContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 22,
+    gap: 14,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 26,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: 'rgba(226, 232, 240, 0.9)',
+    lineHeight: 22,
+  },
+  cardChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  cardAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(14, 165, 233, 0.12)',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  cardActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#38BDF8',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   bottomSpacer: {
     height: 20,
