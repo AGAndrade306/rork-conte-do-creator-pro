@@ -1,0 +1,18 @@
+# ===========================================
+# CONFIGURAÇÃO DE PROVEDOR DE IA
+# ===========================================
+
+# Provedor ativo: OpenAI
+AI_PROVIDER=openai
+
+# ===========================================
+# OPENAI CONFIGURATION
+# ===========================================
+OPENAI_API_KEY=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
+OPENAI_MODEL=gpt-4o
+OPENAI_BASE_URL=https://api.openai.com/v1
+
+# ===========================================
+# RORK TOOLKIT (Backup)
+# ===========================================
+EXPO_PUBLIC_TOOLKIT_URL=https://toolkit.rork.com
