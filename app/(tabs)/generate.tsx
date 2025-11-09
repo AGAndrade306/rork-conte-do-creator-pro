@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Send, Save, TrendingUp, Target, Heart } from 'lucide-react-native';
+import { Sparkles, Send, Save, TrendingUp, Target, Heart, Hash } from 'lucide-react-native';
 import { useRorkAgent } from '@rork/toolkit-sdk';
 import { useContent } from '@/context/ContentContext';
 import { ContentIdea } from '@/types';
@@ -21,6 +21,7 @@ export default function GenerateScreen() {
   const insets = useSafeAreaInsets();
   const [niche, setNiche] = useState('');
   const [branding, setBranding] = useState('');
+  const [quantity, setQuantity] = useState<string>('15');
   const [generatedIdeas, setGeneratedIdeas] = useState<ContentIdea[]>([]);
   const { saveScript } = useContent();
 
@@ -35,9 +36,11 @@ export default function GenerateScreen() {
   const handleGenerate = async () => {
     if (!niche.trim()) return;
 
+    const numIdeas = Math.min(Math.max(1, parseInt(quantity) || 15), 15);
+
     const prompt = `Você é um especialista em criação de conteúdo viral para redes sociais.
 
-Gere EXATAMENTE 15 ideias de conteúdo para o seguinte nicho: ${niche}
+Gere EXATAMENTE ${numIdeas} ideias de conteúdo para o seguinte nicho: ${niche}
 ${branding ? `Características do branding: ${branding}` : ''}
 
 Para cada ideia, forneça em formato JSON:
@@ -149,7 +152,7 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
               </View>
               <Text style={styles.headerTitle}>Criar Ideias de Conteúdo</Text>
               <Text style={styles.headerSubtitle}>
-                IA personalizada que gera 15 ideias com roteiros completos
+                IA personalizada que gera ideias com roteiros completos
               </Text>
             </View>
 
@@ -183,6 +186,27 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
                     textAlignVertical="top"
                   />
                 </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Quantidade de Roteiros</Text>
+                <View style={styles.inputWrapper}>
+                  <Hash size={18} color="#64748B" />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Máximo 15"
+                    placeholderTextColor="#64748B"
+                    value={quantity}
+                    onChangeText={(text) => {
+                      const num = text.replace(/[^0-9]/g, '');
+                      const value = num === '' ? '' : Math.min(parseInt(num) || 1, 15).toString();
+                      setQuantity(value);
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                  />
+                </View>
+                <Text style={styles.helperText}>Entre 1 e 15 roteiros</Text>
               </View>
 
               <TouchableOpacity
@@ -486,6 +510,11 @@ const styles = StyleSheet.create({
   },
   saveButtonTextSaved: {
     color: '#10B981',
+  },
+  helperText: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 4,
   },
   bottomSpacer: {
     height: 40,
