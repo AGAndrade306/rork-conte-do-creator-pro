@@ -16,6 +16,7 @@ import { Sparkles, Send, Save, TrendingUp, Target, Heart, Hash, Flag } from 'luc
 import { trpc } from '@/lib/trpc';
 import { useContent } from '@/context/ContentContext';
 import { ContentIdea } from '@/types';
+import type { GenerateIdeasInput } from '@/schemas/content';
 
 export default function GenerateScreen() {
   const insets = useSafeAreaInsets();
@@ -54,7 +55,9 @@ export default function GenerateScreen() {
   const isGenerating = generateIdeasMutation.isPending;
 
   const handleGenerate = () => {
-    if (!niche.trim()) {
+    const trimmedNiche = niche.trim();
+
+    if (!trimmedNiche) {
       setErrorMessage('Informe um nicho antes de gerar.');
       return;
     }
@@ -63,16 +66,23 @@ export default function GenerateScreen() {
     const trimmedBranding = branding.trim();
     const trimmedPurpose = purpose.trim();
 
-    console.log(`[GenerateScreen] Requesting ${numIdeas} ideias with niche ${niche.trim()}`);
+    const brandingPayload: GenerateIdeasInput['branding'] = {
+      ...(trimmedBranding ? { voice: trimmedBranding } : {}),
+      ...(trimmedPurpose ? { values: [trimmedPurpose] } : {}),
+    };
+
+    const payload: GenerateIdeasInput = {
+      niche: trimmedNiche,
+      branding: brandingPayload,
+      platforms: ['tiktok', 'reels'],
+      count: numIdeas,
+    };
+
+    console.log(`[GenerateScreen] Requesting ${numIdeas} ideias with niche ${trimmedNiche}`);
     setErrorMessage(null);
     setGeneratedIdeas([]);
 
-    generateIdeasMutation.mutate({
-      niche: niche.trim(),
-      quantity: numIdeas,
-      ...(trimmedBranding ? { branding: trimmedBranding } : {}),
-      ...(trimmedPurpose ? { purpose: trimmedPurpose } : {}),
-    });
+    generateIdeasMutation.mutate(payload);
   };
 
 
