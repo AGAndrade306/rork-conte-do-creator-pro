@@ -26,93 +26,55 @@ export default function GenerateScreen() {
   const [generatedIdeas, setGeneratedIdeas] = useState<ContentIdea[]>([]);
   const { saveScript } = useContent();
 
-  const { messages, sendMessage } = useRorkAgent({
-    tools: {},
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const generateIdeasMutation = trpc.content.generateIdeas.useMutation({
+    onSuccess: (data, variables) => {
+      const timestamp = Date.now();
+      const activeNiche = variables?.niche ?? niche;
+      const ideas: ContentIdea[] = data.ideas.map((item, index) => ({
+        id: `${timestamp}-${index}`,
+        title: item.title ?? 'Sem título',
+        hook: item.hook ?? '',
+        script: item.script ?? '',
+        cta: item.cta ?? '',
+        createdAt: timestamp + index,
+        niche: activeNiche,
+      }));
+      setGeneratedIdeas(ideas);
+      setErrorMessage(null);
+      console.log(`[GenerateScreen] Successfully generated ${ideas.length} ideias`);
+    },
+    onError: (error) => {
+      console.error('[GenerateScreen] Error generating ideas:', error);
+      setErrorMessage('Não foi possível gerar ideias. Tente novamente.');
+    },
   });
 
-  const isGenerating = messages.some(m => 
-    m.parts.some(p => p.type === 'text' && m.role === 'assistant' && messages[messages.length - 1]?.id === m.id)
-  );
+  const isGenerating = generateIdeasMutation.isPending;
 
-  const handleGenerate = async () => {
-    if (!niche.trim()) return;
+  const handleGenerate = () => {
+    if (!niche.trim()) {
+      setErrorMessage('Informe um nicho antes de gerar.');
+      return;
+    }
 
-    const numIdeas = Math.min(Math.max(1, parseInt(quantity) || 15), 15);
+    const numIdeas = Math.min(Math.max(1, parseInt(quantity, 10) || 15), 15);
+    const trimmedBranding = branding.trim();
+    const trimmedPurpose = purpose.trim();
 
-    const prompt = `Você é um especialista em criação de conteúdo viral para redes sociais.
+    console.log(`[GenerateScreen] Requesting ${numIdeas} ideias with niche ${niche.trim()}`);
+    setErrorMessage(null);
+    setGeneratedIdeas([]);
 
-Gere EXATAMENTE ${numIdeas} ideias de conteúdo para o seguinte nicho: ${niche}
-${branding ? `Características do branding: ${branding}` : ''}
-${purpose ? `Propósito do conteúdo: ${purpose}` : ''}
-
-Para cada ideia, forneça em formato JSON:
-1. Título atrativo
-2. Hook inicial (primeira frase/cena)
-3. Roteiro completo (estrutura do vídeo)
-4. CTA final
-
-Responda APENAS com um array JSON válido, sem markdown ou explicações extras. Formato:
-[
-  {
-    "title": "título aqui",
-    "hook": "hook aqui",
-    "script": "roteiro completo aqui",
-    "cta": "call to action aqui"
-  }
-]`;
-
-    await sendMessage(prompt);
+    generateIdeasMutation.mutate({
+      niche: niche.trim(),
+      quantity: numIdeas,
+      ...(trimmedBranding ? { branding: trimmedBranding } : {}),
+      ...(trimmedPurpose ? { purpose: trimmedPurpose } : {}),
+    });
   };
 
-  React.useEffect(() => {
-    if (!niche) return;
-    
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === 'assistant') {
-      const textPart = lastMessage.parts.find(p => p.type === 'text');
-      if (textPart && textPart.type === 'text') {
-        try {
-          let text = textPart.text.trim();
-          
-          if (!text || text.length < 10) {
-            return;
-          }
-          
-          text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-          
-          const arrayStartIndex = text.indexOf('[');
-          const arrayEndIndex = text.lastIndexOf(']');
-          
-          if (arrayStartIndex === -1 || arrayEndIndex === -1 || arrayEndIndex <= arrayStartIndex) {
-            return;
-          }
-          
-          text = text.substring(arrayStartIndex, arrayEndIndex + 1);
-          
-          if (!text.endsWith(']')) {
-            return;
-          }
-          
-          const parsed = JSON.parse(text);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const ideas: ContentIdea[] = parsed.map((item, index) => ({
-              id: `${Date.now()}-${index}`,
-              title: item.title || 'Sem título',
-              hook: item.hook || '',
-              script: item.script || '',
-              cta: item.cta || '',
-              createdAt: Date.now(),
-              niche,
-            }));
-            setGeneratedIdeas(ideas);
-            console.log(`Successfully parsed ${ideas.length} ideas`);
-          }
-        } catch (e) {
-          
-        }
-      }
-    }
-  }, [messages, niche]);
 
   const handleSave = async (idea: ContentIdea) => {
     const hookStrength = Math.floor(Math.random() * 30) + 70;
@@ -136,7 +98,14 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
       },
     };
 
-    await saveScript(ideaWithAnalysis);
+    try {
+      console.log(`[GenerateScreen] Saving idea ${idea.id}`);
+      await saveScript(ideaWithAnalysis);
+      console.log(`[GenerateScreen] Idea ${idea.id} saved successfully`);
+    } catch (error) {
+      console.error('[GenerateScreen] Failed to save idea', error);
+      throw error;
+    }
   };
 
   return (
@@ -144,6 +113,7 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
       <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.gradient}>
         <View style={[styles.safeArea, { paddingTop: insets.top }]}>
           <ScrollView
+            testID="generate-scroll"
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -164,6 +134,7 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
                 <View style={styles.inputWrapper}>
                   <Target size={18} color="#64748B" />
                   <TextInput
+                    testID="niche-input"
                     style={styles.input}
                     placeholder="Ex: Fitness, Gastronomia, Tech..."
                     placeholderTextColor="#64748B"
@@ -178,6 +149,7 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
                 <View style={styles.textAreaWrapper}>
                   <Heart size={18} color="#64748B" />
                   <TextInput
+                    testID="branding-input"
                     style={[styles.input, styles.textArea]}
                     placeholder="Tom de voz, valores, persona do público..."
                     placeholderTextColor="#64748B"
@@ -195,6 +167,7 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
                 <View style={styles.inputWrapper}>
                   <Flag size={18} color="#64748B" />
                   <TextInput
+                    testID="purpose-input"
                     style={styles.input}
                     placeholder="Ex: Aumentar engajamento, educar, vender..."
                     placeholderTextColor="#64748B"
@@ -209,14 +182,26 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
                 <View style={styles.inputWrapper}>
                   <Hash size={18} color="#64748B" />
                   <TextInput
+                    testID="quantity-input"
                     style={styles.input}
                     placeholder="Máximo 15"
                     placeholderTextColor="#64748B"
                     value={quantity}
                     onChangeText={(text) => {
-                      const num = text.replace(/[^0-9]/g, '');
-                      const value = num === '' ? '' : Math.min(parseInt(num) || 1, 15).toString();
-                      setQuantity(value);
+                      const digitsOnly = text.replace(/[^0-9]/g, '');
+                      if (digitsOnly === '') {
+                        setQuantity('');
+                        return;
+                      }
+
+                      const parsed = parseInt(digitsOnly, 10);
+                      if (Number.isNaN(parsed)) {
+                        setQuantity('');
+                        return;
+                      }
+
+                      const clamped = Math.max(1, Math.min(parsed, 15));
+                      setQuantity(clamped.toString());
                     }}
                     keyboardType="number-pad"
                     maxLength={2}
@@ -226,6 +211,7 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
               </View>
 
               <TouchableOpacity
+                testID="generate-button"
                 style={[styles.generateButton, (!niche || isGenerating) && styles.generateButtonDisabled]}
                 onPress={handleGenerate}
                 disabled={!niche || isGenerating}
@@ -246,10 +232,16 @@ Responda APENAS com um array JSON válido, sem markdown ou explicações extras.
                   )}
                 </LinearGradient>
               </TouchableOpacity>
+
+              {errorMessage && (
+                <View style={styles.errorContainer} testID="error-message">
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+              )}
             </View>
 
             {generatedIdeas.length > 0 && (
-              <View style={styles.results}>
+              <View style={styles.results} testID="ideas-container">
                 <View style={styles.resultsHeader}>
                   <TrendingUp size={20} color="#A855F7" />
                   <Text style={styles.resultsTitle}>
@@ -278,12 +270,20 @@ function IdeaCard({
 }: { 
   idea: ContentIdea; 
   index: number; 
-  onSave: (idea: ContentIdea) => void;
+  onSave: (idea: ContentIdea) => Promise<void>;
 }) {
   const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saved || isSaving) {
+      return;
+    }
+
+    console.log(`[IdeaCard] Saving idea ${idea.id}`);
+    setIsSaving(true);
+
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.9,
@@ -297,12 +297,19 @@ function IdeaCard({
       }),
     ]).start();
 
-    onSave(idea);
-    setSaved(true);
+    try {
+      await onSave(idea);
+      setSaved(true);
+      console.log(`[IdeaCard] Idea ${idea.id} saved`);
+    } catch (error) {
+      console.error(`[IdeaCard] Failed to save idea ${idea.id}`, error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <View style={styles.ideaCard}>
+    <View style={styles.ideaCard} testID={`idea-card-${idea.id}`}>
       <View style={styles.ideaHeader}>
         <View style={styles.ideaNumber}>
           <Text style={styles.ideaNumberText}>{index + 1}</Text>
@@ -327,14 +334,21 @@ function IdeaCard({
 
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <TouchableOpacity
+          testID={`save-button-${idea.id}`}
           style={[styles.saveButton, saved && styles.saveButtonSaved]}
           onPress={handleSave}
-          disabled={saved}
+          disabled={saved || isSaving}
         >
-          <Save size={18} color={saved ? '#10B981' : '#FFF'} />
-          <Text style={[styles.saveButtonText, saved && styles.saveButtonTextSaved]}>
-            {saved ? 'Salvo!' : 'Salvar Roteiro'}
-          </Text>
+          {isSaving ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <>
+              <Save size={18} color={saved ? '#10B981' : '#FFF'} />
+              <Text style={[styles.saveButtonText, saved && styles.saveButtonTextSaved]}>
+                {saved ? 'Salvo!' : 'Salvar Roteiro'}
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -443,6 +457,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFF',
+  },
+  errorContainer: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  errorText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#F87171',
+    textAlign: 'center',
   },
   results: {
     paddingHorizontal: 20,
