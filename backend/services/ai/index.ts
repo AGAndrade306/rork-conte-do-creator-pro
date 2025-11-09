@@ -26,4 +26,3 @@ export function getAIService(): AIService {
 }
 
 export * from './types';
-export * from './config';
