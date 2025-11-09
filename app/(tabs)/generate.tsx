@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import { useMutation } from '@tanstack/react-query';
 import { Sparkles, Send, Save, TrendingUp, Target, Heart, Hash, Flag } from 'lucide-react-native';
-import { trpc } from '@/lib/trpc';
-import { useContent } from '@/context/ContentContext';
-import { ContentIdea } from '@/types';
-import type { GenerateIdeasInput } from '@/schemas/content';
+import { generateIdeasWithRork } from '../../lib/ai/generateIdeas';
+import { useContent } from '../../context/ContentContext';
+import { ContentIdea } from '../../types';
+import type { GenerateIdeasInput, GenerateIdeasOutput } from '../../schemas/content';
 
 export default function GenerateScreen() {
   const insets = useSafeAreaInsets();
@@ -29,26 +30,34 @@ export default function GenerateScreen() {
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const generateIdeasMutation = trpc.content.generateIdeas.useMutation({
+  const generateIdeasMutation = useMutation<GenerateIdeasOutput, Error, GenerateIdeasInput>({
+    mutationKey: ['content', 'generateIdeas'],
+    mutationFn: generateIdeasWithRork,
     onSuccess: (data, variables) => {
       const timestamp = Date.now();
       const activeNiche = variables?.niche ?? niche;
-      const ideas: ContentIdea[] = data.ideas.map((item, index) => ({
-        id: `${timestamp}-${index}`,
-        title: item.title ?? 'Sem título',
-        hook: item.hook ?? '',
-        script: item.script ?? '',
-        cta: item.cta ?? '',
-        createdAt: timestamp + index,
-        niche: activeNiche,
-      }));
+      const ideas: ContentIdea[] = data.ideas.map((item, index) => {
+        const script = item.outline.length > 0 ? item.outline.join('\n\n') : '';
+
+        return {
+          id: `${timestamp}-${index}`,
+          title: item.title,
+          hook: item.hook,
+          script,
+          cta: item.cta,
+          createdAt: timestamp + index,
+          niche: activeNiche,
+          viralScore: item.viralScore,
+        };
+      });
       setGeneratedIdeas(ideas);
       setErrorMessage(null);
       console.log(`[GenerateScreen] Successfully generated ${ideas.length} ideias`);
     },
     onError: (error) => {
       console.error('[GenerateScreen] Error generating ideas:', error);
-      setErrorMessage('Não foi possível gerar ideias. Tente novamente.');
+      const message = error instanceof Error ? error.message : null;
+      setErrorMessage(message ?? 'Não foi possível gerar ideias. Tente novamente.');
     },
   });
 
