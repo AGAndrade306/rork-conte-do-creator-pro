@@ -1,45 +1,55 @@
-import { Hono } from 'hono';
-import { trpcServer } from '@hono/trpc-server';
-import { cors } from 'hono/cors';
-import { appRouter } from './trpc/app-router';
-import { createContext } from './trpc/create-context';
-import {
-  generateIdeasInputSchema,
-  generateContentIdeas,
-} from './services/content/generate-ideas';
+import { Hono } from "hono";
+import { trpcServer } from "@hono/trpc-server";
+import { appRouter } from "./trpc/app-router";
+import { createContext } from "./trpc/create-context";
+import { generateIdeas } from "./services/content/generate-ideas";
+import { generateIdeasInput } from "../schemas/content";
 
 const app = new Hono();
 
-app.use('*', cors());
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type,Authorization",
+};
+
+app.use("*", async (c, next) => {
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    c.header(key, value);
+  });
+  if (c.req.method === "OPTIONS") {
+    return c.body(null, 204);
+  }
+  await next();
+});
 
 app.use(
-  '/trpc/*',
+  "/trpc/*",
   trpcServer({
-    endpoint: '/api/trpc',
+    endpoint: "/api/trpc",
     router: appRouter,
     createContext,
   })
 );
 
-app.get('/', (c) => {
-  return c.json({ status: 'ok', message: 'API is running' });
+app.get("/", (c) => {
+  return c.json({ status: "ok", message: "API is running" });
 });
 
-app.post('/api/content/generate', async (c) => {
+app.post("/api/content/generate", async (c) => {
   try {
     const body = await c.req.json();
-    const parsed = generateIdeasInputSchema.safeParse(body);
+    const parsed = generateIdeasInput.safeParse(body);
 
     if (!parsed.success) {
-      console.error('[HTTP] Validation error on /api/content/generate', parsed.error.flatten());
-      return c.json({ error: 'Invalid request payload' }, 400);
+      return c.json({ error: parsed.error.format() }, 400);
     }
 
-    const ideas = await generateContentIdeas(parsed.data);
-    return c.json({ ideas });
+    const output = await generateIdeas(parsed.data);
+    return c.json(output, 200);
   } catch (error) {
-    console.error('[HTTP] Failed to generate ideas', error);
-    return c.json({ error: 'Failed to generate ideas' }, 500);
+    console.error("[HTTP] Failed to generate ideas", error);
+    return c.json({ error: "Failed to generate ideas" }, 500);
   }
 });
 
