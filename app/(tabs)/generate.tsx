@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Send, Save, TrendingUp, Target, Heart, Hash, Flag } from 'lucide-react-native';
+import { Sparkles, Send, Save, TrendingUp, Target, Heart, Hash, Flag, Link as LinkIcon } from 'lucide-react-native';
 import { trpc } from '../../lib/trpc';
 import { useContent } from '../../context/ContentContext';
 import { ContentIdea } from '../../types';
@@ -24,6 +24,7 @@ export default function GenerateScreen() {
   const [branding, setBranding] = useState('');
   const [purpose, setPurpose] = useState('');
   const [quantity, setQuantity] = useState<string>('15');
+  const [inspirationUrl, setInspirationUrl] = useState<string>('');
   const [generatedIdeas, setGeneratedIdeas] = useState<ContentIdea[]>([]);
   const { saveScript } = useContent();
 
@@ -71,6 +72,21 @@ export default function GenerateScreen() {
     const numIdeas = Math.min(Math.max(1, parseInt(quantity, 10) || 15), 15);
     const trimmedBranding = branding.trim();
     const trimmedPurpose = purpose.trim();
+    const trimmedInspirationUrl = inspirationUrl.trim();
+
+    if (trimmedInspirationUrl) {
+      try {
+        const parsedUrl = new URL(trimmedInspirationUrl);
+        const protocol = parsedUrl.protocol.toLowerCase();
+        if (protocol !== 'http:' && protocol !== 'https:') {
+          throw new Error('Unsupported protocol');
+        }
+      } catch (error) {
+        console.error('[GenerateScreen] Invalid inspiration URL', error);
+        setErrorMessage('Informe uma URL de inspiração válida.');
+        return;
+      }
+    }
 
     const brandingPayload: GenerateIdeasInput['branding'] = {
       ...(trimmedBranding ? { voice: trimmedBranding } : {}),
@@ -80,6 +96,7 @@ export default function GenerateScreen() {
     const payload: GenerateIdeasInput = {
       niche: trimmedNiche,
       branding: brandingPayload,
+      ...(trimmedInspirationUrl ? { inspirationUrl: trimmedInspirationUrl } : {}),
       platforms: ['tiktok', 'reels'],
       count: numIdeas,
     };
@@ -189,6 +206,23 @@ export default function GenerateScreen() {
                     placeholderTextColor="#64748B"
                     value={purpose}
                     onChangeText={setPurpose}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>URL de Inspiração (opcional)</Text>
+                <View style={styles.inputWrapper}>
+                  <LinkIcon size={18} color="#64748B" />
+                  <TextInput
+                    testID="inspiration-url-input"
+                    style={styles.input}
+                    placeholder="Cole uma URL de referência"
+                    placeholderTextColor="#64748B"
+                    value={inspirationUrl}
+                    onChangeText={setInspirationUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
                   />
                 </View>
               </View>

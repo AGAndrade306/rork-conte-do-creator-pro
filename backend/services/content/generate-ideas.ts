@@ -1,46 +1,55 @@
 import { getAIService } from "../ai";
-import { generateIdeasOutput, type GenerateIdeasInput } from "../../../schemas/content";
+import {
+  generateIdeasOutput,
+  type GenerateIdeasInput,
+  type GenerateIdeasOutput,
+} from "../../../schemas/content";
 
 const SYSTEM_PROMPT = `
-Você cria ideias de conteúdo curtas, com hooks fortes e outline prático.
-Responda sempre em JSON puro.
+Você é uma estrategista de conteúdo que gera ideias curtas, criativas e viralizáveis.
+Mantenha cada resposta em JSON puro compatível com o schema fornecido.
+Inclua outlines objetivos com no máximo 4 passos e CTA claro.
+Quando houver URL de inspiração, extraia padrões e referências coerentes.
 `;
 
-const USER_PROMPT_PREFIX = "Gere {ideas: [{title,hook,outline[],cta,platform,viralScore,references?}]}. INPUT:\n";
+const buildUserPrompt = (input: GenerateIdeasInput) => {
+  const base: Record<string, unknown> = {
+    niche: input.niche,
+    branding: input.branding,
+    platforms: input.platforms,
+    inspirationUrl: input.inspirationUrl ?? null,
+    count: input.count,
+  };
 
-const extractJsonBlock = (text: string) => {
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-
-  if (first === -1 || last === -1 || last <= first) {
-    throw new Error("Resposta da IA não contém JSON válido");
-  }
-
-  return text.slice(first, last + 1);
+  return [
+    "Crie ideias de conteúdo compatíveis com o seguinte contexto:",
+    JSON.stringify(base, null, 2),
+    "Use títulos magnéticos, hook atrativo e CTA específico.",
+    "Score viral deve ser número de 0 a 100.",
+    "Quando relevante, preencha references com insights específicos da URL.",
+  ].join("\n\n");
 };
 
-export async function generateIdeas(input: GenerateIdeasInput) {
+export async function generateIdeas(
+  input: GenerateIdeasInput,
+): Promise<GenerateIdeasOutput> {
   console.log("[Content] Generating ideas with input", JSON.stringify(input));
 
   try {
     const aiService = getAIService();
 
-    const raw = await aiService.generateText({
+    const result = await aiService.generateObject({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `${USER_PROMPT_PREFIX}${JSON.stringify(input)}`,
-        },
+        { role: "user", content: buildUserPrompt(input) },
       ],
-      temperature: 0.7,
-      maxTokens: 2000,
+      schema: generateIdeasOutput,
+      temperature: 0.6,
+      maxTokens: 1600,
     });
 
-    const jsonBlock = extractJsonBlock(raw);
-    const parsed = generateIdeasOutput.parse(JSON.parse(jsonBlock));
-    console.log("[Content] Generated ideas count", parsed.ideas.length);
-    return parsed;
+    console.log("[Content] Generated ideas count", result.ideas.length);
+    return result;
   } catch (error) {
     console.error("[Content] Failed to generate ideas", error);
     throw new Error("Não foi possível gerar ideias de conteúdo no momento.");

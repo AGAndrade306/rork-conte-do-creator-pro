@@ -9,6 +9,10 @@ export const generateIdeasInput = z.object({
       colors: z.array(z.string()).optional(),
     })
     .default({}),
+  inspirationUrl: z
+    .string()
+    .url()
+    .optional(),
   platforms: z
     .array(z.enum(["tiktok", "instagram", "youtube", "reels", "shorts"]))
     .default(["tiktok", "reels"]),
