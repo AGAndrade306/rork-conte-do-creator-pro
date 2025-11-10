@@ -1,33 +1,59 @@
 import { getAIService } from "../ai";
-import {
-  generateIdeasOutput,
-  type GenerateIdeasInput,
-  type GenerateIdeasOutput,
+import type {
+  GenerateIdeasInput,
+  GenerateIdeasOutput,
 } from "../../../schemas/content";
 
-const SYSTEM_PROMPT = `
-Você é uma estrategista de conteúdo que gera ideias curtas, criativas e viralizáveis.
-Mantenha cada resposta em JSON puro compatível com o schema fornecido.
-Inclua outlines objetivos com no máximo 4 passos e CTA claro.
-Quando houver URL de inspiração, extraia padrões e referências coerentes.
-`;
+const buildPrompt = (input: GenerateIdeasInput) => {
+  const parts = [
+    `Você é uma estrategista de conteúdo especializada em criar ideias virais para redes sociais.`,
+    ``,
+    `CONTEXTO:`,
+    `- Nicho: ${input.niche}`,
+    `- Plataformas: ${input.platforms.join(', ')}`,
+    `- Quantidade de ideias: ${input.count}`,
+  ];
 
-const buildUserPrompt = (input: GenerateIdeasInput) => {
-  const base: Record<string, unknown> = {
-    niche: input.niche,
-    branding: input.branding,
-    platforms: input.platforms,
-    inspirationUrl: input.inspirationUrl ?? null,
-    count: input.count,
-  };
+  if (input.branding?.voice) {
+    parts.push(`- Tom de voz: ${input.branding.voice}`);
+  }
 
-  return [
-    "Crie ideias de conteúdo compatíveis com o seguinte contexto:",
-    JSON.stringify(base, null, 2),
-    "Use títulos magnéticos, hook atrativo e CTA específico.",
-    "Score viral deve ser número de 0 a 100.",
-    "Quando relevante, preencha references com insights específicos da URL.",
-  ].join("\n\n");
+  if (input.branding?.values && input.branding.values.length > 0) {
+    parts.push(`- Valores: ${input.branding.values.join(', ')}`);
+  }
+
+  if (input.inspirationUrl) {
+    parts.push(`- URL de inspiração: ${input.inspirationUrl}`);
+  }
+
+  parts.push(
+    ``,
+    `TAREFA:`,
+    `Crie ${input.count} ideias de conteúdo viral com:`,
+    `1. Título magnético e chamativo`,
+    `2. Hook forte para prender atenção nos primeiros 3 segundos`,
+    `3. Outline com 3-4 pontos principais do roteiro`,
+    `4. CTA (Call-to-Action) específico e claro`,
+    `5. Score viral de 0-100 baseado no potencial de viralização`,
+    ``,
+    `IMPORTANTE: Responda APENAS com um objeto JSON válido seguindo este formato:`,
+    `{`,
+    `  "ideas": [`,
+    `    {`,
+    `      "title": "Título da ideia",`,
+    `      "hook": "Gancho inicial impactante",`,
+    `      "outline": ["Ponto 1", "Ponto 2", "Ponto 3"],`,
+    `      "cta": "Call to action específico",`,
+    `      "platform": "tiktok",`,
+    `      "viralScore": 85`,
+    `    }`,
+    `  ]`,
+    `}`,
+    ``,
+    `Não inclua texto adicional, apenas o JSON.`,
+  );
+
+  return parts.join('\n');
 };
 
 export async function generateIdeas(
@@ -37,21 +63,28 @@ export async function generateIdeas(
 
   try {
     const aiService = getAIService();
+    const prompt = buildPrompt(input);
 
-    const result = await aiService.generateObject({
+    console.log("[Content] Using prompt:", prompt.substring(0, 300));
+
+    const result = await aiService.generateObject<GenerateIdeasOutput>({
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: buildUserPrompt(input) },
+        { role: "user", content: prompt },
       ],
-      schema: generateIdeasOutput,
-      temperature: 0.6,
-      maxTokens: 1600,
+      schema: {} as any,
+      temperature: 0.7,
+      maxTokens: 2000,
     });
 
-    console.log("[Content] Generated ideas count", result.ideas.length);
+    if (!result.ideas || !Array.isArray(result.ideas) || result.ideas.length === 0) {
+      throw new Error('IA retornou formato inválido');
+    }
+
+    console.log("[Content] Generated", result.ideas.length, "ideas successfully");
     return result;
   } catch (error) {
-    console.error("[Content] Failed to generate ideas", error);
-    throw new Error("Não foi possível gerar ideias de conteúdo no momento.");
+    console.error("[Content] Failed to generate ideas:", error);
+    const message = error instanceof Error ? error.message : 'Erro desconhecido';
+    throw new Error(`Não foi possível gerar ideias: ${message}`);
   }
 }
