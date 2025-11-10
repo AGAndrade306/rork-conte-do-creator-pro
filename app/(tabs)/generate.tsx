@@ -12,9 +12,8 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMutation } from '@tanstack/react-query';
 import { Sparkles, Send, Save, TrendingUp, Target, Heart, Hash, Flag } from 'lucide-react-native';
-import { generateIdeasWithRork } from '../../lib/ai/generateIdeas';
+import { trpc } from '../../lib/trpc';
 import { useContent } from '../../context/ContentContext';
 import { ContentIdea } from '../../types';
 import type { GenerateIdeasInput, GenerateIdeasOutput } from '../../schemas/content';
@@ -30,10 +29,8 @@ export default function GenerateScreen() {
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const generateIdeasMutation = useMutation<GenerateIdeasOutput, Error, GenerateIdeasInput>({
-    mutationKey: ['content', 'generateIdeas'],
-    mutationFn: generateIdeasWithRork,
-    onSuccess: (data, variables) => {
+  const generateIdeasMutation = trpc.content.generateIdeas.useMutation({
+    onSuccess: (data: GenerateIdeasOutput, variables: GenerateIdeasInput) => {
       const timestamp = Date.now();
       const activeNiche = variables?.niche ?? niche;
       const ideas: ContentIdea[] = data.ideas.map((item, index) => {

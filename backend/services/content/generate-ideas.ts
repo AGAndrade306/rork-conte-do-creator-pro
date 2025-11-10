@@ -1,32 +1,44 @@
 import { getAIService } from "../ai";
 import { generateIdeasOutput, type GenerateIdeasInput } from "../../../schemas/content";
 
-export async function generateIdeas(input: GenerateIdeasInput) {
-  console.log("[Content] Generating ideas with input", JSON.stringify(input));
-
-  const system = `
+const SYSTEM_PROMPT = `
 Você cria ideias de conteúdo curtas, com hooks fortes e outline prático.
 Responda sempre em JSON puro.
-  `;
+`;
 
-  const user = JSON.stringify(input);
+const USER_PROMPT_PREFIX = "Gere {ideas: [{title,hook,outline[],cta,platform,viralScore,references?}]}. INPUT:\n";
+
+const extractJsonBlock = (text: string) => {
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+
+  if (first === -1 || last === -1 || last <= first) {
+    throw new Error("Resposta da IA não contém JSON válido");
+  }
+
+  return text.slice(first, last + 1);
+};
+
+export async function generateIdeas(input: GenerateIdeasInput) {
+  console.log("[Content] Generating ideas with input", JSON.stringify(input));
 
   try {
     const aiService = getAIService();
 
-    const result = await aiService.generateObject({
+    const raw = await aiService.generateText({
       messages: [
-        { role: "system", content: system },
+        { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Gere {ideas: [{title,hook,outline[],cta,platform,viralScore}]}. INPUT:\n${user}`,
+          content: `${USER_PROMPT_PREFIX}${JSON.stringify(input)}`,
         },
       ],
-      schema: generateIdeasOutput,
       temperature: 0.7,
+      maxTokens: 2000,
     });
 
-    const parsed = generateIdeasOutput.parse(result);
+    const jsonBlock = extractJsonBlock(raw);
+    const parsed = generateIdeasOutput.parse(JSON.parse(jsonBlock));
     console.log("[Content] Generated ideas count", parsed.ideas.length);
     return parsed;
   } catch (error) {
